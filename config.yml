@@ -1,0 +1,11 @@
+project:
+  name: "mygit"
+  version: "1.0.0"
+  language: "Java"
+  platform: "Windows"
+  author: "unisocsu"
+
+settings:
+  auth_port: 8080
+  default_branch: "main"
+  repository_url: "https://github.com/unisocsu/mygit.git"
