@@ -2,52 +2,69 @@ import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
 
-import java.awt.Desktop;
-import java.net.URI;
-import java.net.InetSocketAddress;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.awt.Desktop;
+import java.net.URI;
+import java.util.List;
 
 public class mygitauth {
     public static void main(String[] args) {
         try {
-            // הרמת שרת HTTP מקומי בפורט 8080 לקליטת החזרה מגיטהאב 🌐
+            // טעינת ה-Client ID מתוך קובץ ה-config.yml או שימוש בברירת מחדל
+            String clientId = "YOUR_CLIENT_ID";
+            try {
+                List<String> lines = Files.readAllLines(Paths.get("config.yml"));
+                for (String line : lines) {
+                    if (line.trim().startsWith("client_id")) {
+                        String[] parts = line.split(":");
+                        if (parts.length > 1) {
+                            clientId = parts[1].trim().replace("\"", "").replace("'", "");
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("⚠️ קובץ config.yml לא נמצא, משתמש בברירת מחדל.");
+            }
+
+            // הפעלת שרת מקומי בפורט 8080
             HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
-            server.createContext("/callback", new HttpHandler() {
+            final String finalClientId = clientId;
+
+            server.createContext("/", new HttpHandler() {
                 @Override
                 public void handle(HttpExchange exchange) throws IOException {
                     String query = exchange.getRequestURI().getQuery();
-                    System.out.println("נתונים התקבלו בהצלחה מהדפדפן! 🚀");
-                    
-                    String responseHtml = "<html><body dir='rtl'><h2 style='font-family: Arial;'>ההתחברות הצליחה! אתה יכול לסגור את החלון הזה ולחזור לפרויקט. 🎉</h2></body></html>";
-                    exchange.sendResponseHeaders(200, responseHtml.getBytes("UTF-8").length);
+                    String response;
+
+                    // בדיקה אם קיבלנו קוד אישור חזרה מ-GitHub
+                    if (query != null && query.contains("code=")) {
+                        response = "<h1>Authentication Successful! 🎉</h1><p>MyGit is connected to GitHub successfully. You can close this window now.</p>";
+                    } else {
+                        // הפניה אוטומטית לעמוד ההתחברות הרשמי של GitHub עם ה-Client ID
+                        String authUrl = "https://github.com/login/oauth/authorize?client_id=" + finalClientId;
+                        exchange.getResponseHeaders().set("Location", authUrl);
+                        exchange.sendResponseHeaders(302, -1);
+                        return;
+                    }
+
+                    exchange.sendResponseHeaders(200, response.getBytes("UTF-8").length);
                     OutputStream os = exchange.getResponseBody();
-                    os.write(responseHtml.getBytes("UTF-8"));
+                    os.write(response.getBytes("UTF-8"));
                     os.close();
-                    
-                    // עצירת השרת לאחר קבלת הקוד ברקע בצורה נקייה 🛑
-                    new Thread(() -> {
-                        try {
-                            Thread.sleep(1000);
-                            server.stop(0);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }).start();
                 }
             });
+
             server.setExecutor(null);
             server.start();
-            System.out.println("שרת ההזדהות רץ ברקע וממתין לחיבור ב-port 8080... 🖥️");
+            System.out.println("🚀 השרת רץ בפורט 8080! פותח את הדפדפן להתחברות ל-GitHub...");
 
-            // פתיחת דפדפן ברירת המחדל של ווינדוס לכתובת ההתחברות של גיטהאב 🌍
-            String githubLoginUrl = "https://github.com/login/oauth/authorize?client_id=YOUR_CLIENT_ID";
-            
+            // פתיחת הדפדפן אוטומטית
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                Desktop.getDesktop().browse(new URI(githubLoginUrl));
-                System.out.println("הדפדפן נפתח בהצלחה מול ווינדוס! ✨");
-            } else {
-                System.out.println("לא ניתן לפתוח את הדפדפן אוטומטית. אנא היכנס ידנית לקישור: " + githubLoginUrl);
+                Desktop.getDesktop().browse(new URI("http://localhost:8080"));
             }
 
         } catch (Exception e) {
