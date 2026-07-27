@@ -1,4 +1,4 @@
-name: Build Java Project ☕
+name: Build Java Project & Create JAR ☕
 
 on:
   push:
@@ -22,3 +22,12 @@ jobs:
 
     - name: Compile Java files ⚙️
       run: javac -encoding UTF-8 *.java
+
+    - name: Create JAR package 📦
+      run: jar cfe mygit.jar mygitauth *.class
+
+    - name: Upload JAR Artifact 🚀
+      uses: actions/upload-artifact@v4
+      with:
+        name: mygit-executable
+        path: mygit.jar
